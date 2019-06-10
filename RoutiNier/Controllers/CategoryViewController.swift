@@ -7,10 +7,11 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
-    var categoryArray = [Category]()
+    let realm = try! Realm()
+    var categoryArray: Results<Category>?
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     
@@ -20,12 +21,12 @@ class CategoryViewController: UITableViewController {
     }
      //MARK: - TableView Datasource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categoryArray.count
+        return categoryArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
         
-        cell.textLabel?.text = categoryArray[indexPath.row].name
+        cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "No Catogories Added"
         return cell
     }
     
@@ -36,14 +37,11 @@ class CategoryViewController: UITableViewController {
         let alert = UIAlertController(title: "Add new Routine Category", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "Add", style: .default){
             (action) in
-            //geting context out of appDelegate
-            
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             newCategory.name = textField.text!
-            
-            self.categoryArray.append(newCategory)//setting new item into array
-            self.saveCategory()
+            self.saveCategory(category: newCategory)
     }
+        alert.addAction(action)
         //adding text field into the alert message
         alert.addTextField { (alertTextField) in
             alertTextField.placeholder = "Create new Routine!"
@@ -55,23 +53,23 @@ class CategoryViewController: UITableViewController {
     }
     
     //MARK: - Data Manipulation Methods
-    func saveCategory(){
+    func saveCategory(category: Category){
         
         do {
-            try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         }catch{
-            print("Error saving context \(error)")
+            print("Error saving into realm \(error)")
         }
         
         self.tableView.reloadData()//refresh data to show new element in tableView
         
     }
-    func loadCategory(with request: NSFetchRequest<Category> = Category.fetchRequest()){
-        do{
-            categoryArray = try context.fetch(request)
-        }catch{
-            print("Error fetching data from context \(error)")
-        }
+    func loadCategory(){
+        categoryArray = realm.objects(Category.self)
+        tableView.reloadData()
+    
         
     }
     //MARK: - TableView Delegate Methods
@@ -81,9 +79,9 @@ class CategoryViewController: UITableViewController {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         let destinationVC = segue.destination as! TodolistViewController
         if let indexPath = tableView.indexPathForSelectedRow{
-            destinationVC.selectedCategory = categoryArray[indexPath.row]
+            destinationVC.selectedCategory = categoryArray?[indexPath.row] 
         }
     }
-    //MARK: - TableView Datasource Methods
+    
     
 }
